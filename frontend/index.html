@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VPC Kanban Board</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div id="app">
+        <header>
+            <div class="title">JIRA Kanban Service</div>
+            <div class="user-info">
+                <span>Team Member</span>
+            </div>
+        </header>
+
+        <nav class="nav-tabs">
+            <button id="showKanbanBtn" class="tab-btn active">Kanban Board</button>
+            <button id="showExplorerBtn" class="tab-btn">Ticket Explorer</button>
+        </nav>
+
+        <section class="filters">
+            <input type="text" id="projectInput" placeholder="Project Key (e.g. CORE)">
+            <input type="text" id="userInput" placeholder="Assignee">
+            <input type="date" id="startDateInput">
+            <input type="date" id="endDateInput">
+            <button id="refreshBtn">Refresh</button>
+            <button id="queryDeploymentBtn" class="secondary">Query Deployment</button>
+        </section>
+
+        <main id="board" class="view-section">
+            <!-- Columns will be injected by JS -->
+        </main>
+
+        <main id="explorer" class="view-section" style="display: none;">
+            <div class="explorer-container glass">
+                <table id="ticketTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Title</th>
+                            <th>Status</th>
+                            <th>Assignee</th>
+                            <th>Project</th>
+                            <th>Type</th>
+                            <th>Created</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ticketTableBody">
+                        <!-- Rows will be injected by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <!-- Ticket Detail Modal -->
+    <div id="modalOverlay" class="modal-overlay">
+        <div class="modal glass">
+            <div id="modalContent">
+                <!-- Content will be injected -->
+            </div>
+            <div style="margin-top: 2rem; display: flex; gap: 1rem;">
+                <button onclick="closeModal()" class="secondary">Close</button>
+                <button id="moveNextBtn">Move to Next Process</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
