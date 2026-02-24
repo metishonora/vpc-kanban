@@ -1,10 +1,8 @@
 use sqlx::{sqlite::SqlitePoolOptions, SqlitePool};
-use std::env;
 
 pub async fn init_db() -> Result<SqlitePool, sqlx::Error> {
     let database_url = "sqlite:kanban.db";
-    
-    // Create database file if it doesn't exist
+
     if !std::path::Path::new("kanban.db").exists() {
         std::fs::File::create("kanban.db").unwrap();
     }
@@ -14,41 +12,44 @@ pub async fn init_db() -> Result<SqlitePool, sqlx::Error> {
         .connect(database_url)
         .await?;
 
-    // Create tables
+    // Tasks 테이블: kanban에 추가된 일감. 영구 저장.
     sqlx::query(
-        "CREATE TABLE IF NOT EXISTS tickets (
-            id TEXT PRIMARY KEY,
-            title TEXT NOT NULL,
-            description TEXT,
-            status TEXT NOT NULL,
-            assignee TEXT,
-            project_id TEXT NOT NULL,
-            created_at DATETIME NOT NULL,
-            updated_at DATETIME NOT NULL,
-            ticket_type TEXT NOT NULL,
-            parent_id TEXT,
-            start_date DATETIME,
-            end_date DATETIME,
-            jira_url TEXT,
-            alias TEXT,
-            tags TEXT,
-            keywords TEXT,
-            related_tickets TEXT,
-            is_deleted BOOLEAN NOT NULL DEFAULT 0
+        "CREATE TABLE IF NOT EXISTS tasks (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            jira_ticket_key TEXT,
+            title           TEXT NOT NULL,
+            description     TEXT,
+            status          TEXT NOT NULL DEFAULT 'Pending',
+            stage           TEXT,
+            assignee        TEXT,
+            project_key     TEXT,
+            parent_task_id  INTEGER REFERENCES tasks(id),
+            alias           TEXT,
+            tags            TEXT,
+            keywords        TEXT,
+            start_date      TEXT,
+            due_date        TEXT,
+            jira_url        TEXT,
+            created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         )"
-    ).execute(&pool).await?;
+    )
+    .execute(&pool)
+    .await?;
 
+    // Task comments
     sqlx::query(
-        "CREATE TABLE IF NOT EXISTS comments (
-            id TEXT PRIMARY KEY,
-            ticket_id TEXT NOT NULL,
-            author TEXT NOT NULL,
-            content TEXT NOT NULL,
-            created_at DATETIME NOT NULL,
+        "CREATE TABLE IF NOT EXISTS task_comments (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            task_id     INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+            author      TEXT NOT NULL,
+            content     TEXT NOT NULL,
             attachments TEXT,
-            FOREIGN KEY (ticket_id) REFERENCES tickets(id)
+            created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         )"
-    ).execute(&pool).await?;
+    )
+    .execute(&pool)
+    .await?;
 
     Ok(pool)
 }

@@ -1,71 +1,151 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VPC Kanban Board</title>
+    <title>VPC Kanban</title>
+    <meta name="description" content="VPC 프로젝트 칸반 보드 - Backlog 조회, 칸반 관리, 일정 확인">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
     <div id="app">
+        <!-- ── Header ── -->
         <header>
-            <div class="title">JIRA Kanban Service</div>
-            <div class="user-info">
-                <span>Team Member</span>
+            <div class="app-title">VPC Kanban</div>
+            <div class="header-right">
+                <span class="header-user">Team Member</span>
+                <button id="themeToggle" class="theme-toggle" title="라이트/다크 모드 전환">
+                    <span class="sun-icon">☀️</span>
+                    <span class="moon-icon">🌙</span>
+                </button>
             </div>
         </header>
 
-        <nav class="nav-tabs">
-            <button id="showKanbanBtn" class="tab-btn active">Kanban Board</button>
-            <button id="showExplorerBtn" class="tab-btn">Ticket Explorer</button>
+        <!-- ── Tabs ── -->
+        <nav class="tab-nav">
+            <button class="tab-btn active" data-tab="backlog">Backlog</button>
+            <button class="tab-btn" data-tab="kanban">Kanban</button>
+            <button class="tab-btn" data-tab="tasks">Tasks</button>
         </nav>
 
-        <section class="filters">
-            <input type="text" id="projectInput" placeholder="Project Key (e.g. CORE)">
-            <input type="text" id="userInput" placeholder="Assignee">
-            <input type="date" id="startDateInput">
-            <input type="date" id="endDateInput">
-            <button id="refreshBtn">Refresh</button>
-            <button id="queryDeploymentBtn" class="secondary">Query Deployment</button>
+        <!-- ══════════════════════════════════════
+             Tab: Backlog
+        ══════════════════════════════════════ -->
+        <section id="backlog-view" class="tab-view active">
+            <div class="backlog-toolbar">
+                <input type="text" id="backlogProject" placeholder="Project Key (예: VPC)" value="VPC">
+                <input type="text" id="backlogUser" placeholder="담당자 (선택)">
+                <input type="text" id="backlogJql" placeholder="추가 JQL (선택)">
+                <button id="backlogQueryBtn">조회</button>
+                <button id="addToKanbanBtn" class="btn-success" disabled>
+                    선택한 티켓 Kanban에 추가
+                </button>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="includeSubtasks" checked>
+                    <span>하위 티켓 포함</span>
+                </label>
+            </div>
+
+            <div id="backlogContainer" class="backlog-container">
+                <div class="empty-state">
+                    <div class="empty-icon">🔍</div>
+                    <p>프로젝트 키를 입력하고 <strong>조회</strong>를 클릭하세요.</p>
+                </div>
+            </div>
         </section>
 
-        <main id="board" class="view-section">
-            <!-- Columns will be injected by JS -->
-        </main>
+        <!-- ══════════════════════════════════════
+             Tab: Kanban
+        ══════════════════════════════════════ -->
+        <section id="kanban-view" class="tab-view" style="display:none;">
+            <div class="kanban-toolbar">
+                <button id="newTaskBtn">+ 새 Task 추가</button>
+            </div>
+            <div id="kanban-board" class="kanban-board">
+                <!-- Columns injected by JS -->
+            </div>
+        </section>
 
-        <main id="explorer" class="view-section" style="display: none;">
-            <div class="explorer-container glass">
-                <table id="ticketTable">
+        <!-- ══════════════════════════════════════
+             Tab: Tasks
+        ══════════════════════════════════════ -->
+        <section id="tasks-view" class="tab-view" style="display:none;">
+            <div class="tasks-table-wrapper">
+                <table id="tasks-table" class="tasks-table">
                     <thead>
                         <tr>
                             <th>ID</th>
-                            <th>Title</th>
-                            <th>Status</th>
-                            <th>Assignee</th>
-                            <th>Project</th>
-                            <th>Type</th>
-                            <th>Created</th>
+                            <th>제목 / Alias</th>
+                            <th>담당자</th>
+                            <th>상태 / 단계</th>
+                            <th>Start Date</th>
+                            <th>Due Date</th>
+                            <th style="min-width:280px;">진행도</th>
                         </tr>
                     </thead>
-                    <tbody id="ticketTableBody">
-                        <!-- Rows will be injected by JS -->
+                    <tbody id="tasks-table-body">
+                        <!-- Rows injected by JS -->
                     </tbody>
                 </table>
             </div>
-        </main>
+        </section>
     </div>
 
-    <!-- Ticket Detail Modal -->
-    <div id="modalOverlay" class="modal-overlay">
+    <!-- ══════════════════════════════════════
+         Modal: Task 상세 / 수정
+    ══════════════════════════════════════ -->
+    <div id="taskModalOverlay" class="modal-overlay">
         <div class="modal glass">
-            <div id="modalContent">
-                <!-- Content will be injected -->
+            <div id="taskModalContent">
+                <!-- Content injected by JS -->
             </div>
-            <div style="margin-top: 2rem; display: flex; gap: 1rem;">
-                <button onclick="closeModal()" class="secondary">Close</button>
-                <button id="moveNextBtn">Move to Next Process</button>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         Modal: 새 Task 생성
+    ══════════════════════════════════════ -->
+    <div id="newTaskModalOverlay" class="modal-overlay">
+        <div class="modal glass" style="max-width:500px;">
+            <div class="modal-header">
+                <h2>새 Task 추가</h2>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:1rem; margin-top:1rem;">
+                <div>
+                    <label>제목 *</label>
+                    <input type="text" id="newTaskTitle" placeholder="Task 제목">
+                </div>
+                <div>
+                    <label>설명</label>
+                    <textarea id="newTaskDesc" placeholder="설명"
+                        style="width:100%; min-height:80px; background:var(--input-bg); color:var(--text-primary); border:1px solid var(--border-color); padding:0.5rem; border-radius:6px; resize:vertical;"></textarea>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                    <div>
+                        <label>Alias</label>
+                        <input type="text" id="newTaskAlias" placeholder="별칭">
+                    </div>
+                    <div>
+                        <label>담당자</label>
+                        <input type="text" id="newTaskAssignee" placeholder="담당자">
+                    </div>
+                    <div>
+                        <label>Start Date</label>
+                        <input type="date" id="newTaskStartDate">
+                    </div>
+                    <div>
+                        <label>Due Date</label>
+                        <input type="date" id="newTaskDueDate">
+                    </div>
+                </div>
+            </div>
+            <div style="margin-top:1.5rem; display:flex; gap:1rem;">
+                <button onclick="closeNewTaskModal()" class="btn-secondary">취소</button>
+                <button onclick="submitNewTask()">추가</button>
             </div>
         </div>
     </div>

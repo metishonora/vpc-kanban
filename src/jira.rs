@@ -1,9 +1,8 @@
-use crate::models::{Ticket, JiraQuery};
-use chrono::{Utc, TimeZone};
-use uuid::Uuid;
+use crate::models::{JiraTicket, JiraQuery};
+use chrono::{Utc, NaiveDate};
 
 pub struct JiraClient {
-    // In a real implementation, this would hold API tokens, base URL, etc.
+    // 실제 구현 시: base_url, api_token, user_email 등 보유
 }
 
 impl JiraClient {
@@ -11,83 +10,76 @@ impl JiraClient {
         Self {}
     }
 
-    pub async fn query_tickets(&self, query: JiraQuery) -> Vec<Ticket> {
-        // Mock implementation for different versions/scenarios
+    pub async fn query_tickets(&self, query: JiraQuery) -> Vec<JiraTicket> {
+        let project = query.project.clone().unwrap_or_else(|| "VPC".to_string());
         let mut tickets = Vec::new();
-        
-        // Random mock data generation
-        for i in 1..=5 {
-            let id = format!("{}-{}", query.project.clone().unwrap_or("PROJ".to_string()), 100 + i);
-            tickets.push(Ticket {
-                id: id.clone(),
-                title: format!("Ticket Title {}", i),
-                description: Some("This is a mock description from JIRA".to_string()),
-                status: "To Do".to_string(),
+
+        // ── 부모 티켓 3개 생성 (각각에 subtask 포함) ──
+        for i in 1..=3 {
+            let parent_key = format!("{}-{}", project, 100 + i);
+            let subtasks: Vec<JiraTicket> = (1..=2)
+                .map(|j| JiraTicket {
+                    key: format!("{}-{}", project, 200 + (i - 1) * 2 + j),
+                    title: format!("Sub-task {} of Story {}", j, i),
+                    description: Some(format!("구현 세부 항목 {} (Story {} 하위)", j, i)),
+                    jira_status: "To Do".to_string(),
+                    assignee: query.user.clone(),
+                    project_key: project.clone(),
+                    ticket_type: "Sub-task".to_string(),
+                    parent_key: Some(parent_key.clone()),
+                    subtasks: vec![],
+                    start_date: None,
+                    due_date: Some(
+                        NaiveDate::from_ymd_opt(2026, 3, 10 + i as u32 * 5).unwrap()
+                    ),
+                    created_at: Utc::now(),
+                    jira_url: Some(format!(
+                        "https://jira.example.com/browse/{}-{}",
+                        project,
+                        200 + (i - 1) * 2 + j
+                    )),
+                })
+                .collect();
+
+            tickets.push(JiraTicket {
+                key: parent_key.clone(),
+                title: format!("Story {}: 주요 기능 개발 {}", i, i),
+                description: Some(format!(
+                    "이 스토리는 주요 기능 {}를 구현합니다. 하위에 {} 개의 세부 태스크가 있습니다.",
+                    i,
+                    subtasks.len()
+                )),
+                jira_status: if i == 1 { "In Progress".to_string() } else { "To Do".to_string() },
                 assignee: query.user.clone(),
-                project_id: query.project.clone().unwrap_or("DEFAULT".to_string()),
+                project_key: project.clone(),
+                ticket_type: "Story".to_string(),
+                parent_key: None,
+                subtasks,
+                start_date: Some(NaiveDate::from_ymd_opt(2026, 2, 20).unwrap()),
+                due_date: Some(NaiveDate::from_ymd_opt(2026, 3, 15 + i as u32 * 5).unwrap()),
                 created_at: Utc::now(),
-                updated_at: Utc::now(),
-                ticket_type: "Task".to_string(),
-                parent_id: None,
-                start_date: None,
-                end_date: None,
-                jira_url: Some(format!("https://jira.company.com/browse/{}", id)),
-                alias: None,
-                tags: None,
-                keywords: None,
-                related_tickets: None,
-                is_deleted: false,
+                jira_url: Some(format!("https://jira.example.com/browse/{}", parent_key)),
             });
         }
 
-        // Add a mock deployment ticket if specifically requested or to demonstrate
-        if query.query_string.as_deref() == Some("DEPLOYMENT_QUERY") {
-            let dep_id = "DEP-123".to_string();
-            tickets.push(Ticket {
-                id: dep_id.clone(),
-                title: "Release v1.0.0".to_string(),
-                description: Some("Deployment ticket for version 1.0.0".to_string()),
-                status: "In Progress".to_string(),
-                assignee: Some("Lead".to_string()),
-                project_id: "DEPLOY".to_string(),
+        // ── 단독 티켓 (subtask 없음) ──
+        for i in 1..=2 {
+            let key = format!("{}-{}", project, 300 + i);
+            tickets.push(JiraTicket {
+                key: key.clone(),
+                title: format!("Bug Fix {}: 긴급 버그 수정", i),
+                description: Some(format!("긴급 버그 {} 수정 작업", i)),
+                jira_status: "To Do".to_string(),
+                assignee: None,
+                project_key: project.clone(),
+                ticket_type: "Bug".to_string(),
+                parent_key: None,
+                subtasks: vec![],
+                start_date: None,
+                due_date: Some(NaiveDate::from_ymd_opt(2026, 3, 1 + i as u32).unwrap()),
                 created_at: Utc::now(),
-                updated_at: Utc::now(),
-                ticket_type: "Deployment".to_string(),
-                parent_id: None,
-                start_date: Some(Utc::now()),
-                end_date: Some(Utc::now() + chrono::Duration::days(14)),
-                jira_url: Some(format!("https://jira.company.com/browse/{}", dep_id)),
-                alias: Some("v1.0.0 Release".to_string()),
-                tags: Some("release,major".to_string()),
-                keywords: Some("production,stable".to_string()),
-                related_tickets: None,
-                is_deleted: false,
+                jira_url: Some(format!("https://jira.example.com/browse/{}", key)),
             });
-
-            // Add sub-tasks for the deployment
-            for i in 1..=3 {
-                let sub_id = format!("SUB-{}", i);
-                tickets.push(Ticket {
-                    id: sub_id.clone(),
-                    title: format!("Sub-task Implementation {}", i),
-                    description: None,
-                    status: "Review/Spec".to_string(),
-                    assignee: None,
-                    project_id: "DEPLOY".to_string(),
-                    created_at: Utc::now(),
-                    updated_at: Utc::now(),
-                    ticket_type: "Task".to_string(),
-                    parent_id: Some(dep_id.clone()),
-                    start_date: None,
-                    end_date: None,
-                    jira_url: Some(format!("https://jira.company.com/browse/{}", sub_id)),
-                    alias: None,
-                    tags: None,
-                    keywords: None,
-                    related_tickets: Some(dep_id.clone()),
-                    is_deleted: false,
-                });
-            }
         }
 
         tickets
